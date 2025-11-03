@@ -109,7 +109,9 @@
             URL.revokeObjectURL(output!);
             output = undefined;
             const sv = selectedVideo!;
-            output = await cut(await sv.file.bytes(), sv.range);
+            const ab = await sv.file.arrayBuffer();
+            const buffer = new Uint8Array(ab);
+            output = await cut(buffer, sv.range);
           } catch (e) {
             console.error(e);
           } finally {
