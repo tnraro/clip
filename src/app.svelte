@@ -7,6 +7,7 @@
 
   interface VideoFile {
     name: string;
+    ext: string;
     size: number;
     lastModified: Date;
     blobUrl: string;
@@ -19,45 +20,50 @@
   let cutting = $state(false);
   let dragging = $state(false);
 
-  async function cut(input: FileData, [ss, to]: number[]) {
+  async function cut(input: FileData, [ss, to]: number[], ext: string) {
     const ffmpeg = await getFFmpeg();
 
-    await ffmpeg.writeFile("input.mp4", input);
+    const inputName = `input.${ext}`;
+    const outputName = `output.${ext}`;
+
+    await ffmpeg.writeFile(inputName, input);
     await ffmpeg.exec([
       "-ss",
       String(ss),
       "-to",
       String(to),
       "-i",
-      "input.mp4",
+      inputName,
       "-c:v",
       "copy",
       "-c:a",
       "copy",
-      "output.mp4",
+      outputName,
     ]);
-    const data = (await ffmpeg.readFile("output.mp4")) as Uint8Array;
+    const data = (await ffmpeg.readFile(outputName)) as Uint8Array;
 
     return URL.createObjectURL(
-      new Blob([data.buffer as BlobPart], { type: "video/mp4" })
+      new Blob([data.buffer as BlobPart], { type: `video/${ext}` })
     );
   }
-  function saveOutput() {
+  function saveOutput(selectedVideo: VideoFile) {
     if (output == null) {
       alert("저장할 파일이 없습니다");
       return;
     }
     const a = document.createElement("a");
     a.href = output;
-    a.download = `${selectedVideo?.name.split(".").slice(0, -1).join(".")}_${selectedVideo?.range[0].toFixed(3)}-${selectedVideo?.range[1].toFixed(3)}.mp4`;
+    a.download = `${selectedVideo.name}_${selectedVideo.range[0].toFixed(3)}-${selectedVideo.range[1].toFixed(3)}.${selectedVideo.ext}`;
     a.click();
   }
   function addFile(file: File) {
     URL.revokeObjectURL(selectedVideo?.blobUrl!);
     URL.revokeObjectURL(output!);
     output = undefined;
+    const [name, ext] = file.name.split(/\.(?=[^.]+$)/);
     selectedVideo = {
-      name: file.name,
+      name,
+      ext,
       size: file.size,
       lastModified: new Date(file.lastModified),
       blobUrl: URL.createObjectURL(file),
@@ -111,7 +117,7 @@
             const sv = selectedVideo!;
             const ab = await sv.file.arrayBuffer();
             const buffer = new Uint8Array(ab);
-            output = await cut(buffer, sv.range);
+            output = await cut(buffer, sv.range, sv.ext);
           } catch (e) {
             console.error(e);
           } finally {
@@ -130,7 +136,7 @@
     </div>
     <button
       class="py-1 w-full flex gap-1 items-center justify-center text-gray-800 hover:bg-gray-200"
-      onclick={saveOutput}
+      onclick={() => saveOutput(selectedVideo!)}
     >
       4.
       <DownloadIcon />
