@@ -19,6 +19,7 @@
   let output = $state<string>();
   let cutting = $state(false);
   let dragging = $state(false);
+  let errors = $state<string[]>([]);
 
   async function cut(input: FileData, [ss, to]: number[], ext: string) {
     const ffmpeg = await getFFmpeg();
@@ -119,6 +120,7 @@
             const buffer = new Uint8Array(ab);
             output = await cut(buffer, sv.range, sv.ext);
           } catch (e) {
+            errors.push(String(e));
             console.error(e);
           } finally {
             cutting = false;
@@ -142,6 +144,15 @@
       <DownloadIcon />
       저장
     </button>
+  {/if}
+  {#if errors.length > 0}
+    <div
+      class="text-rose-600 bg-rose-200 border border-rose-600 rounded px-2 py-1 max-w-sm w-full mx-auto"
+    >
+      {#each errors as error}
+        <p>{error}</p>
+      {/each}
+    </div>
   {/if}
 </main>
 
