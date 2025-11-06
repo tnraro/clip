@@ -43,9 +43,24 @@
     ]);
     const data = (await ffmpeg.readFile(outputName)) as Uint8Array;
 
-    return URL.createObjectURL(
-      new Blob([data.buffer as BlobPart], { type: `video/${ext}` })
-    );
+    const stream = new ReadableStream({
+      start(controller) {
+        const chunkSize = 512 * 1024 * 1024;
+        for (let offset = 0; offset < data.length; offset += chunkSize) {
+          const chunk = data.subarray(
+            offset,
+            Math.min(offset + chunkSize, data.length)
+          );
+          controller.enqueue(chunk);
+        }
+        controller.close();
+      },
+    });
+
+    const response = new Response(stream);
+    const blob = await response.blob();
+
+    return URL.createObjectURL(blob);
   }
   function saveOutput(selectedVideo: VideoFile) {
     if (output == null) {
